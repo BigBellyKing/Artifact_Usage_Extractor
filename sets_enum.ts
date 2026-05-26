@@ -58,4 +58,6 @@ export enum SetKey {
   SilkenMoonsSerenade = 'SilkenMoonsSerenade',
   ADayCarvedFromRisingWinds = 'ADayCarvedFromRisingWinds',
   AubadeOfMorningstarAndMoon = 'AubadeOfMorningstarAndMoon',
+  CelestialGift = 'CelestialGift',
+  DisenchantmentInDeepShadow = 'DisenchantmentInDeepShadow',
 }

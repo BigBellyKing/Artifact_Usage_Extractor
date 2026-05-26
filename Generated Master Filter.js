@@ -718,6 +718,7 @@ const FLOWER_PLUME_BUILDS = {
       ],
       "source_characters": [
         "Aino_REACTION SUPPORT",
+        "Illuga_BUFF SUPPORT",
         "Lauma_BUFF SUPPORT (HIGH-ENERGY REQUIREMENT)",
         "Lauma_BUFF SUPPORT(LOW-ENERGY REQUIREMENT)"
       ]
@@ -742,7 +743,8 @@ const FLOWER_PLUME_BUILDS = {
         "hp_"
       ],
       "source_characters": [
-        "Columbina_OFF-FIELD DPS & BUFF SUPPORT"
+        "Columbina_HIGH ENERGY REQUIREMENTOFF-FIELD DPS & BUFF SUPPORT",
+        "Columbina_LOW ENERGY REQUIREMENTOFF-FIELD DPS & BUFF SUPPORT"
       ]
     }
   ],
@@ -803,6 +805,29 @@ const FLOWER_PLUME_BUILDS = {
         "critDMG_",
         "critRate_",
         "eleMas",
+        "enerRech_"
+      ],
+      "source_characters": [
+        "Illuga_BUFF SUPPORT"
+      ]
+    },
+    {
+      "substats_desired": [
+        "critDMG_",
+        "critRate_",
+        "def_",
+        "eleMas",
+        "enerRech_"
+      ],
+      "source_characters": [
+        "Linnea_OFF-FIELD DPS & BUFF AND HEAL SUPPORT"
+      ]
+    },
+    {
+      "substats_desired": [
+        "critDMG_",
+        "critRate_",
+        "eleMas",
         "hp_"
       ],
       "source_characters": [
@@ -818,7 +843,8 @@ const FLOWER_PLUME_BUILDS = {
         "hp_"
       ],
       "source_characters": [
-        "Columbina_OFF-FIELD DPS & BUFF SUPPORT"
+        "Columbina_HIGH ENERGY REQUIREMENTOFF-FIELD DPS & BUFF SUPPORT",
+        "Columbina_LOW ENERGY REQUIREMENTOFF-FIELD DPS & BUFF SUPPORT"
       ]
     }
   ],
@@ -907,6 +933,7 @@ const FLOWER_PLUME_BUILDS = {
       ],
       "source_characters": [
         "Barbara_BLOOM DPS",
+        "Illuga_BUFF SUPPORT",
         "Raiden_HYPERBLOOM"
       ]
     },
@@ -997,6 +1024,7 @@ const FLOWER_PLUME_BUILDS = {
         "enerRech_"
       ],
       "source_characters": [
+        "Illuga_BUFF SUPPORT",
         "Razor_HYPERBLOOM / REACTION DPS"
       ]
     },
@@ -1102,6 +1130,7 @@ const FLOWER_PLUME_BUILDS = {
         "enerRech_"
       ],
       "source_characters": [
+        "Illuga_BUFF SUPPORT",
         "Nefer_DPS"
       ]
     },
@@ -1125,7 +1154,7 @@ const FLOWER_PLUME_BUILDS = {
         "hp_"
       ],
       "source_characters": [
-        "Columbina_OFF-FIELD DPS & BUFF SUPPORT"
+        "Columbina_ON-FIELD DPS"
       ]
     }
   ],
@@ -1305,6 +1334,17 @@ const FLOWER_PLUME_BUILDS = {
       ],
       "source_characters": [
         "Ganyu_MELT DPS"
+      ]
+    },
+    {
+      "substats_desired": [
+        "critDMG_",
+        "critRate_",
+        "eleMas",
+        "enerRech_"
+      ],
+      "source_characters": [
+        "Illuga_BUFF SUPPORT"
       ]
     },
     {
@@ -1757,6 +1797,18 @@ const FLOWER_PLUME_BUILDS = {
       ],
       "source_characters": [
         "Chiori_OFF-FIELD DPS"
+      ]
+    },
+    {
+      "substats_desired": [
+        "critDMG_",
+        "critRate_",
+        "def_",
+        "eleMas",
+        "enerRech_"
+      ],
+      "source_characters": [
+        "Linnea_OFF-FIELD DPS & BUFF AND HEAL SUPPORT"
       ]
     }
   ],
@@ -2253,6 +2305,7 @@ const GSC_RAW_BUILDS = [
       "enerRech_"
     ],
     "source_characters": [
+      "Illuga_BUFF SUPPORT",
       "Lauma_BUFF SUPPORT (HIGH-ENERGY REQUIREMENT)",
       "Mizuki_REACTION DPS"
     ]
@@ -3453,6 +3506,29 @@ const GSC_RAW_BUILDS = [
   },
   {
     "sands_main": [
+      "def_",
+      "enerRech_"
+    ],
+    "goblet_main": [
+      "def_"
+    ],
+    "circlet_main": [
+      "critDMG_",
+      "critRate_"
+    ],
+    "substats_desired": [
+      "critDMG_",
+      "critRate_",
+      "def_",
+      "eleMas",
+      "enerRech_"
+    ],
+    "source_characters": [
+      "Linnea_OFF-FIELD DPS & BUFF AND HEAL SUPPORT"
+    ]
+  },
+  {
+    "sands_main": [
       "atk_",
       "enerRech_"
     ],
@@ -3787,7 +3863,30 @@ const GSC_RAW_BUILDS = [
       "hp_"
     ],
     "source_characters": [
-      "Columbina_OFF-FIELD DPS & BUFF SUPPORT"
+      "Columbina_HIGH ENERGY REQUIREMENTOFF-FIELD DPS & BUFF SUPPORT"
+    ]
+  },
+  {
+    "sands_main": [
+      "hp_"
+    ],
+    "goblet_main": [
+      "hp_"
+    ],
+    "circlet_main": [
+      "critDMG_",
+      "critRate_"
+    ],
+    "substats_desired": [
+      "critDMG_",
+      "critRate_",
+      "eleMas",
+      "enerRech_",
+      "hp_"
+    ],
+    "source_characters": [
+      "Columbina_LOW ENERGY REQUIREMENTOFF-FIELD DPS & BUFF SUPPORT",
+      "Columbina_ON-FIELD DPS"
     ]
   },
   {
