@@ -15,7 +15,7 @@ import Sanity_Checker       # The dynamic checker
 
 # --- CONFIGURATION ---
 CONFIG_FILE = ".artifact_tool_config.json"
-DEFAULT_CSV_FILE = "artifacts usage.csv"
+DEFAULT_CSV_FILE = "../../genshin-scraper/artifacts_usage_filtered.csv"
 DEFAULT_JS_FILE = "Generated Master Filter.js"
 
 def evaluate_roll_value(csv_file, json_file):
@@ -145,6 +145,12 @@ class UnifiedArtifactTool(tk.Tk):
         self.sets_data = {}
         self._load_settings()
         self._create_widgets()
+        
+        # --- PHASE 5: PIPELINE CHECK ---
+        if not os.path.exists(DEFAULT_CSV_FILE):
+            self.status_var.set(f"⚠️ Warning: Scraper output not found at {DEFAULT_CSV_FILE}")
+        else:
+            self.status_var.set("Ready. Linked to Scraper output.")
 
     def _create_widgets(self):
         notebook = ttk.Notebook(self)
@@ -322,7 +328,15 @@ class UnifiedArtifactTool(tk.Tk):
             return
 
         file_exists = os.path.exists(DEFAULT_CSV_FILE)
-        headers = ['Character Name', 'Top Artifact Sets', 'Common Sands', 'Common Goblet', 'Common Circlet', 'Substat Priority']
+        writer.writerow({
+                    'Character Name': char_name,
+                    'Raw Artifact String': "MANUAL BUILD",  # Fill the visual column with a placeholder
+                    'Top Artifact Sets': set_name,
+                    'Common Sands': ", ".join(sands),
+                    'Common Goblet': ", ".join(goblets),
+                    'Common Circlet': ", ".join(circlets),
+                    'Substat Priority': ", ".join(substats)
+                })
         
         try:
             with open(DEFAULT_CSV_FILE, 'a', newline='', encoding='utf-8') as f:

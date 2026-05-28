@@ -10,6 +10,11 @@ JS_TEMPLATE = """// @ts-check
  * --- SCRIPT DOCUMENTATION ---
  * This is a master script that consolidates all artifact locking logic into a single,
  * intelligent filter.
+ * 
+ * STRATEGY:
+ * 1. Flower/Plumes: Checked against specific Sets defined in `FLOWER_PLUME_BUILDS`.
+ * 2. Sands/Goblet/Circlet: Checked against a high-performance Index built from `GSC_RAW_BUILDS`.
+ *    - This allows for "Scarcity Management" (keeping rare off-pieces) without performance cost.
  */
 /**
  * @typedef {{key: string}} Substat
@@ -25,26 +30,45 @@ JS_TEMPLATE = """// @ts-check
 
 // --- CONFIGURATION ---
 const CONFIG = {
+  // For a Level 0 artifact that starts with 4 substats, require this many desirable substats to lock.
   DESIRED_SUBSTAT_COUNT_4_LINE: 3,
+  // For a Level 0 artifact that starts with 3 substats, require this many desirable substats to lock.
   DESIRED_SUBSTAT_COUNT_3_LINE: 2,
 };
 
 // --- DATA: GENERATED FROM CSV ---
+
+// Builds specifically for Flowers and Plumes, where only substats matter.
 const FLOWER_PLUME_BUILDS = {FLOWER_PLUME_BUILDS_JSON};
+
+// A raw list of general-purpose builds for Sands, Goblets, and Circlets.
+// Each entry defines a valid combination of main stats and desired substats.
 const GSC_RAW_BUILDS = {GSC_RAW_BUILDS_JSON};
 
-// --- PERFORMANCE INDEXING ---
-const OPTIMIZED_GSC_INDEX = { sands: {}, goblet: {}, circlet: {} };
+// --- PERFORMANCE INDEXING (RUNTIME OPTIMIZATION) ---
+// This runs once when the script is loaded.
+// It converts the linear GSC_RAW_BUILDS list into a hash map for O(1) lookups.
 
+const OPTIMIZED_GSC_INDEX = {
+  sands: {},
+  goblet: {},
+  circlet: {}
+};
+
+// Helper to populate the index
 function addToIndex(slot, mainStats, desiredSubs) {
   if (!mainStats) return;
+  // Convert desired subs to a Set for O(1) lookup speed during scanning
   const desiredSet = new Set(desiredSubs);
   mainStats.forEach(mainStat => {
-    if (!OPTIMIZED_GSC_INDEX[slot][mainStat]) OPTIMIZED_GSC_INDEX[slot][mainStat] = [];
+    if (!OPTIMIZED_GSC_INDEX[slot][mainStat]) {
+      OPTIMIZED_GSC_INDEX[slot][mainStat] = [];
+    }
     OPTIMIZED_GSC_INDEX[slot][mainStat].push(desiredSet);
   });
 }
 
+// Build the Index immediately
 if (Array.isArray(GSC_RAW_BUILDS)) {
   GSC_RAW_BUILDS.forEach(build => {
     addToIndex('sands', build.sands_main, build.substats_desired);
@@ -54,23 +78,42 @@ if (Array.isArray(GSC_RAW_BUILDS)) {
 }
 
 // --- MAIN LOGIC ---
+
+/**
+ * Main function to determine if an artifact should be locked.
+ * @param {Artifact} artifact - The artifact to evaluate.
+ * @returns {boolean | null} - True to lock, false to unlock, null to ignore.
+ */
 module.exports = (artifact) => {
+  
+  // Rule 0: Ignore anything that isn't a 5-star artifact.
   if (artifact.rarity < 5) return false;
+
   const artifactSubstats = artifact.substats.map(s => s.key);
 
-  let hasCR = false, hasCD = false;
+  // Rule 1: Universal lock for any piece with both Crit Rate and Crit Damage.
+  // This is a safety net for high-potential pieces regardless of set.
+  let hasCR = false;
+  let hasCD = false;
   for (const key of artifactSubstats) {
     if (key === 'critRate_') hasCR = true;
     if (key === 'critDMG_') hasCD = true;
   }
   if (hasCR && hasCD) return true;
 
-  const threshold = artifact.substats.length === 4 ? CONFIG.DESIRED_SUBSTAT_COUNT_4_LINE : CONFIG.DESIRED_SUBSTAT_COUNT_3_LINE;
+  // Determine the minimum number of desired substats required based on starting lines.
+  const threshold = artifact.substats.length === 4
+    ? CONFIG.DESIRED_SUBSTAT_COUNT_4_LINE
+    : CONFIG.DESIRED_SUBSTAT_COUNT_3_LINE;
+
   const { slotKey, setKey, mainStatKey } = artifact;
 
+  // Rule 2a: Logic for Flowers and Plumes (Strict Set Matching).
   if (slotKey === 'flower' || slotKey === 'plume') {
     const buildsForSet = FLOWER_PLUME_BUILDS[setKey];
-    if (!buildsForSet) return false;
+    if (!buildsForSet) return false; // This set is not in our desired list for F/P.
+
+    // Check if the artifact's substats match any of the defined builds for this set.
     for (const build of buildsForSet) {
       let matchCount = 0;
       for (const sub of artifactSubstats) {
@@ -81,16 +124,25 @@ module.exports = (artifact) => {
     return false;
   }
   
+  // Rule 2b: Logic for Sands, Goblets, and Circlets (Indexed Lookup).
+  // We check the optimized index to see if ANY build needs this Main Stat + Slot combo.
+  
   const validBuilds = OPTIMIZED_GSC_INDEX[slotKey]?.[mainStatKey];
+  
+  // If NO character in the database uses this Main Stat on this Slot, trash it.
   if (!validBuilds) return false;
 
+  // Check against the specific builds that use this Main Stat
   for (const desiredSet of validBuilds) {
     let matchCount = 0;
     for (const sub of artifactSubstats) {
+      // Set.has() is instant (O(1)) compared to Array.includes()
       if (desiredSet.has(sub)) matchCount++;
     }
     if (matchCount >= threshold) return true;
   }
+
+  // If no rules were met, do not lock the artifact.
   return false;
 };
 """
