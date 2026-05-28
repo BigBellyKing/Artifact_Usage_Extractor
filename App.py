@@ -353,10 +353,11 @@ class UnifiedArtifactTool(tk.Tk):
         circlets = [k for k, v in self.circlet_vars.items() if v.get()]
         
         # Mapping UI names to CSV internal names (matching extraction logic)
+        # Mapping UI names to precise GOOD.json internal names
         ui_to_csv_map = {
-            'ATK%': 'ATK%', 'HP%': 'HP%', 'DEF%': 'DEF%', 
-            'Energy Recharge': 'ER%', 'Elemental Mastery': 'EM', 
-            'Crit Rate': 'CRIT Rate%', 'Crit DMG': 'CRIT DMG%'
+            'ATK%': 'atk_', 'HP%': 'hp_', 'DEF%': 'def_', 
+            'Energy Recharge': 'enerRech_', 'Elemental Mastery': 'eleMas', 
+            'Crit Rate': 'critRate_', 'Crit DMG': 'critDMG_'
         }
         substats = [ui_to_csv_map[k] for k, v in self.substat_vars.items() if v.get()]
 
@@ -395,7 +396,7 @@ class UnifiedArtifactTool(tk.Tk):
 
     def _run_gen(self):
         try:
-            c1, c2 = conversion_utils.generate_js_from_csv(DEFAULT_CSV_FILE, DEFAULT_JS_FILE, SETS_ENUM_FILE)
+            c1, c2 = conversion_utils.generate_js_from_csv(DEFAULT_CSV_FILE, DEFAULT_JS_FILE)
             messagebox.showinfo("Success", f"Generated JS with {c1} Sets and {c2} Builds.")
         except Exception as e:
             messagebox.showerror("Error", str(e))

@@ -19,62 +19,9 @@ SLOT_ORDER = {
 }
 
 # --- HELPERS ---
-def normalize_set_key(text):
-    """
-    For Set Names ONLY.
-    Aggressively removes spaces/symbols and lowercases to match 'noblesseoblige'.
-    """
-    if not text: return ""
-    return re.sub(r'[^a-zA-Z0-9]', '', text).lower()
-
-def clean_csv_value(text):
-    """
-    Removes the verbose percentage data from CSV values.
-    Example: "ATK% (50.5%)" -> "ATK%"
-    """
-    if not text: return ""
-    text = re.sub(r'\s*\(.*?\)', '', text) # Remove (...)
-    return text.strip()
-
 def clean_split(text):
     if not text: return []
-    return [clean_csv_value(s) for s in text.split(',') if s.strip()]
-
-# --- STAT MAPPING ---
-STAT_MAP = {
-    # Readable Names
-    'ATK%': 'atk_', 
-    'HP%': 'hp_', 
-    'DEF%': 'def_', 
-    'ER%': 'enerRech_', 'Energy Recharge': 'enerRech_',
-    'EM': 'eleMas', 'Elemental Mastery': 'eleMas',
-    'CRIT Rate%': 'critRate_', 'Crit Rate': 'critRate_',
-    'CRIT DMG%': 'critDMG_', 'Crit DMG': 'critDMG_',
-    'Physical DMG': 'physical_dmg_', 
-    'Anemo DMG': 'anemo_dmg_', 
-    'Geo DMG': 'geo_dmg_', 
-    'Electro DMG': 'electro_dmg_', 
-    'Hydro DMG': 'hydro_dmg_', 
-    'Pyro DMG': 'pyro_dmg_', 
-    'Cryo DMG': 'cryo_dmg_', 
-    'Dendro DMG': 'dendro_dmg_',
-
-    # Internal Keys
-    'atk_': 'atk_', 'hp_': 'hp_', 'def_': 'def_',
-    'enerRech_': 'enerRech_', 'enerrech_': 'enerRech_',
-    'eleMas': 'eleMas', 'elemas': 'eleMas',
-    'critRate_': 'critRate_', 'critrate_': 'critRate_',
-    'critDMG_': 'critDMG_', 'critdmg_': 'critDMG_',
-    'heal_': 'heal_'
-}
-
-def map_stat(s):
-    """Maps a CSV string to the strict JSON key."""
-    if s in STAT_MAP: return STAT_MAP[s]
-    s_clean = s.strip()
-    if s_clean in STAT_MAP: return STAT_MAP[s_clean]
-    if s_clean.endswith('_') or s_clean in ['eleMas', 'heal_']: return s_clean
-    return s_clean
+    return [s.strip() for s in text.split(',') if s.strip()]
 
 # --- DYNAMIC LOGIC LOADER ---
 def load_logic_from_csv(csv_path):
@@ -87,12 +34,12 @@ def load_logic_from_csv(csv_path):
             reader = csv.DictReader(f)
             for row in reader:
                 char = row['Character Name']
-                sets = [normalize_set_key(s) for s in clean_split(row['Top Artifact Sets'])]
+                sets = clean_split(row['Top Artifact Sets'])
                 
-                sands = [map_stat(s) for s in clean_split(row['Common Sands'])]
-                gob = [map_stat(s) for s in clean_split(row['Common Goblet'])]
-                circ = [map_stat(s) for s in clean_split(row['Common Circlet'])]
-                subs = [map_stat(s) for s in clean_split(row['Substat Priority'])]
+                sands = clean_split(row['Common Sands'])
+                gob = clean_split(row['Common Goblet'])
+                circ = clean_split(row['Common Circlet'])
+                subs = clean_split(row['Substat Priority'])
 
                 if not subs: continue
 
@@ -107,7 +54,7 @@ def load_logic_from_csv(csv_path):
                     else: fp_builds[s_key].append({'subs': subs, 'chars': [char]})
 
                     # Special Strict S/G/C Logic for Instructor
-                    if s_key == 'instructor':
+                    if s_key == 'Instructor':
                         # Check if this exact build exists in strict list to avoid dupes
                         existing_strict = next((b for b in strict_builds[s_key] 
                                                 if b['sands']==sands and b['gob']==gob and b['circ']==circ and b['subs']==subs), None)
@@ -128,14 +75,14 @@ def load_logic_from_csv(csv_path):
 # --- CORE CHECKER ---
 def check_artifact(art, fp_builds, gsc_builds, strict_builds):
     substat_keys = set(s['key'] for s in art.get('substats', []))
-    set_key = normalize_set_key(art['setKey'])
+    set_key = art['setKey']
     rarity = art.get('rarity', 0)
     slot = art['slotKey']
     main = art['mainStatKey']
     line_count = len(substat_keys)
 
     # --- INSTRUCTOR LOGIC (Strict) ---
-    if set_key == 'instructor':
+    if set_key == 'Instructor':
         # 1. Rarity: Allow 4-star and 5-star (though Instructor is 4-star max)
         if rarity < 4: return False, None
 

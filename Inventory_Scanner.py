@@ -7,18 +7,10 @@ from collections import defaultdict, Counter
 MIN_SUBS = 3 
 
 # --- HELPERS ---
-def normalize_set_key(text):
-    if not text: return ""
-    return re.sub(r'[^a-zA-Z0-9]', '', text).lower()
-
-def clean_csv_value(text):
-    if not text: return ""
-    text = re.sub(r'\s*\(.*?\)', '', text)
-    return text.strip()
-
 def clean_split(text):
+    """Splits a comma-separated string and strips whitespace."""
     if not text: return []
-    return [clean_csv_value(s) for s in text.split(',') if s.strip()]
+    return [s.strip() for s in text.split(',') if s.strip()]
 
 def extract_base_character_name(full_name):
     """
@@ -29,62 +21,41 @@ def extract_base_character_name(full_name):
         return full_name.split('_')[0]
     return full_name
 
-STAT_MAP = {
-    'ATK%': 'atk_', 'HP%': 'hp_', 'DEF%': 'def_', 
-    'ER%': 'enerRech_', 'Energy Recharge': 'enerRech_',
-    'EM': 'eleMas', 'Elemental Mastery': 'eleMas',
-    'CRIT Rate%': 'critRate_', 'Crit Rate': 'critRate_',
-    'CRIT DMG%': 'critDMG_', 'Crit DMG': 'critDMG_',
-    'Physical DMG': 'physical_dmg_', 'Anemo DMG': 'anemo_dmg_', 
-    'Geo DMG': 'geo_dmg_', 'Electro DMG': 'electro_dmg_', 
-    'Hydro DMG': 'hydro_dmg_', 'Pyro DMG': 'pyro_dmg_', 
-    'Cryo DMG': 'cryo_dmg_', 'Dendro DMG': 'dendro_dmg_',
-    'Heal': 'heal_', 'Healing Bonus': 'heal_'
-}
+def normalize_char_name(name):
+    """Used ONLY for comparing GOOD.json locations to CSV base names in Summary C."""
+    if not name: return ""
+    return re.sub(r'[^a-zA-Z0-9]', '', name).lower()
 
-def map_stat(s):
-    if s in STAT_MAP: return STAT_MAP[s]
-    s_clean = s.strip()
-    if s_clean in STAT_MAP: return STAT_MAP[s_clean]
-    if s_clean.endswith('_') or s_clean == 'eleMas': return s_clean
-    return normalize_set_key(s_clean)
 
 # --- MAIN LOGIC ---
 def scan_inventory(csv_file, json_file, strict_mode=False):
     logs = []
     
-    # 1. Load CSV Requirements
+    # 1. Load CSV Requirements (Now relying on exact keys)
     chars = {}
-    csv_base_char_names_normalized = set()  # Store normalized base names
+    csv_base_char_names_normalized = set()
     
     try:
         with open(csv_file, 'r', encoding='utf-8') as f:
             reader = csv.DictReader(f)
             for row in reader:
-                # Full name includes role: e.g., "Heizou_DPS"
                 full_name = row['Character Name'].strip()
                 if not full_name: continue
                 
-                # Extract base character name for comparison
                 base_name = extract_base_character_name(full_name)
-                csv_base_char_names_normalized.add(normalize_set_key(base_name))
+                csv_base_char_names_normalized.add(normalize_char_name(base_name))
 
-                raw_sets = clean_split(row['Top Artifact Sets'])
-                valid_sets = [normalize_set_key(s) for s in raw_sets]
-                
-                desired_raw = clean_split(row['Substat Priority'])
-                desired_subs = [map_stat(s) for s in desired_raw]
+                valid_sets = clean_split(row['Top Artifact Sets'])
+                desired_subs = clean_split(row['Substat Priority'])
                 
                 # Store with FULL name as key to support multiple builds per character
                 chars[full_name] = {
-                    "base_name": base_name,  # Store base name for reference
+                    "base_name": base_name,
                     "valid_sets": valid_sets,
-                    "raw_sets": raw_sets, 
-                    "sands_main": [map_stat(s) for s in clean_split(row['Common Sands'])],
-                    "goblet_main": [map_stat(s) for s in clean_split(row['Common Goblet'])],
-                    "circlet_main": [map_stat(s) for s in clean_split(row['Common Circlet'])],
-                    "desired_subs": desired_subs,
-                    "display_subs": desired_raw
+                    "sands_main": clean_split(row['Common Sands']),
+                    "goblet_main": clean_split(row['Common Goblet']),
+                    "circlet_main": clean_split(row['Common Circlet']),
+                    "desired_subs": desired_subs
                 }
     except Exception as e:
         return [f"Error reading CSV: {e}"], []
@@ -112,19 +83,21 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
     for art in inventory:
         slot = art.get('slotKey')
         main = art.get('mainStatKey')
-        set_key = normalize_set_key(art.get('setKey'))
+        set_key = art.get('setKey')
         art_subs = [s['key'] for s in art.get('substats', [])]
         level = art.get('level', 0)
 
-        # Now iterate through ALL character builds (including multiple builds per character)
+        # Iterate through ALL character builds
         for char_name, reqs in chars.items():
             matches = [s for s in reqs['desired_subs'] if s in art_subs]
             score = len(matches)
-            if score < MIN_SUBS: continue
+            
+            if score < MIN_SUBS: 
+                continue
 
             art_entry = {
                 'level': level, 
-                'set': art.get('setKey'), 
+                'set': set_key, 
                 'main': main, 
                 'score': score
             }
@@ -152,6 +125,7 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
                 elif slot == 'circlet':
                     if main in reqs['circlet_main']: char_builds[char_name][slot].append(art_entry)
 
+
     # ==========================================
     # 4. GENERATE SUMMARIES
     # ==========================================
@@ -163,22 +137,15 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
         filled_slots = char_builds[char_name].keys()
         filled_count = len(filled_slots)
         
-        # Identify Incomplete Characters
         if filled_count < 5:
-            # Calculate exactly which slots are missing for THIS character
-            missing = []
-            for slot in ['flower', 'plume', 'sands', 'goblet', 'circlet']:
-                if slot not in filled_slots:
-                    missing.append(slot)
-            
+            missing = [s for s in ['flower', 'plume', 'sands', 'goblet', 'circlet'] if s not in filled_slots]
             incomplete_chars.append({
                 'name': char_name,
                 'filled': filled_count,
                 'missing_slots': missing,
-                'sets': reqs['raw_sets']
+                'sets': reqs['valid_sets']
             })
     
-    # Sort by number of filled slots (descending) - closest to complete first
     incomplete_chars.sort(key=lambda x: x['filled'], reverse=True)
     
     logs.append("\n" + "="*60)
@@ -194,23 +161,15 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
         logs.append(f"       Sets: {sets_str}")
         logs.append("")
 
-    # --- SUMMARY B: FARMING PRIORITY (REVISED) ---
-    # Structure: set_name -> { 'count': int, 'missing_slots': Counter }
+    # --- SUMMARY B: FARMING PRIORITY ---
     set_stats = defaultdict(lambda: {'count': 0, 'missing': Counter()})
     
     for char_name, reqs in chars.items():
         filled_slots = char_builds[char_name].keys()
         
-        # Identify Incomplete Characters
         if len(filled_slots) < 5:
-            # Calculate exactly which slots are missing for THIS character
-            missing = []
-            for slot in ['flower', 'plume', 'sands', 'goblet', 'circlet']:
-                if slot not in filled_slots:
-                    missing.append(slot)
-            
-            # Add demand to all their valid sets
-            for s_raw in reqs['raw_sets']:
+            missing = [s for s in ['flower', 'plume', 'sands', 'goblet', 'circlet'] if s not in filled_slots]
+            for s_raw in reqs['valid_sets']:
                 set_stats[s_raw]['count'] += 1
                 for m_slot in missing:
                     set_stats[s_raw]['missing'][m_slot] += 1
@@ -220,16 +179,13 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
     logs.append("Sets needed by incomplete characters & missing slots")
     logs.append("="*60)
     
-    # Sort by number of characters needing the set
     sorted_sets = sorted(set_stats.items(), key=lambda x: x[1]['count'], reverse=True)
 
     for set_name, data in sorted_sets:
         count = data['count']
         if count == 0: continue
         
-        # Format the missing slots (e.g., "sands x2, goblet x1")
         missing_str_parts = []
-        # Sort slots to be consistent (Flower -> Plume -> Sands...)
         slot_order = ['flower', 'plume', 'sands', 'goblet', 'circlet']
         for s in slot_order:
             if data['missing'][s] > 0:
@@ -239,11 +195,9 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
         logs.append(f"[{count} Chars] {set_name:<30} | Missing: {missing_display}")
 
     # --- SUMMARY C: MISSING CONFIG ---
-    # Compare JSON equipped characters against CSV base names
     missing_config = []
     for char in json_equipped_chars:
-        # Normalize the JSON character name and check against CSV base names
-        if normalize_set_key(char) not in csv_base_char_names_normalized:
+        if normalize_char_name(char) not in csv_base_char_names_normalized:
             missing_config.append(char)
     
     if missing_config:
@@ -252,6 +206,7 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
         logs.append("!"*60)
         for m in sorted(missing_config):
             logs.append(f"  - {m}")
+
 
     # ==========================================
     # 5. GENERATE DETAILED RESULTS
@@ -264,9 +219,9 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
         if filled_slots < 3: continue 
 
         char_report = {
-            "name": char_name,  # This now includes the role (e.g., "Heizou_DPS")
+            "name": char_name,
             "ready": f"{filled_slots}/5",
-            "subs": ", ".join(chars[char_name]['display_subs']),
+            "subs": ", ".join(chars[char_name]['desired_subs']),
             "artifacts": []
         }
 
@@ -278,7 +233,7 @@ def scan_inventory(csv_file, json_file, strict_mode=False):
                 top = pieces[0]
                 set_display = top['set']
                 if not strict_mode and slot not in ['flower', 'plume']:
-                     if normalize_set_key(top['set']) not in chars[char_name]['valid_sets']:
+                     if top['set'] not in chars[char_name]['valid_sets']:
                          set_display += " (Off-Set)"
 
                 char_report["artifacts"].append(
