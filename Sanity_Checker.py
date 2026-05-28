@@ -2,20 +2,12 @@ import json
 import csv
 import re
 from collections import defaultdict
+import shared_config
 
 # --- CONFIG ---
 CONFIG = {
     "DESIRED_SUBSTAT_COUNT_4_LINE": 3,
     "DESIRED_SUBSTAT_COUNT_3_LINE": 3,
-}
-
-# --- SORTING ORDER ---
-SLOT_ORDER = {
-    'flower': 0,
-    'plume': 1,
-    'sands': 2,
-    'goblet': 3,
-    'circlet': 4
 }
 
 # --- HELPERS ---
@@ -215,7 +207,7 @@ def run_check(csv_path, json_path):
             fn_items = [x for x in items if x['category'] == "FALSE NEGATIVE"]
 
             def sort_by_slot(x):
-                return SLOT_ORDER.get(x['slot'], 99)
+                return shared_config.SLOT_ORDER.get(x['slot'], 99)
 
             fp_items.sort(key=sort_by_slot)
             fn_items.sort(key=sort_by_slot)

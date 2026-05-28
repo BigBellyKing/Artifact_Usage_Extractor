@@ -9,7 +9,7 @@ from collections import Counter, defaultdict
 
 # Local Modules
 import conversion_utils
-import stat_utils           # Required for build analysis
+import shared_config           # Required for build analysis
 import Inventory_Scanner    # The merged scanner
 import Sanity_Checker       # The dynamic checker
 
@@ -17,43 +17,11 @@ import Sanity_Checker       # The dynamic checker
 CONFIG_FILE = ".artifact_tool_config.json"
 DEFAULT_CSV_FILE = "artifacts usage.csv"
 DEFAULT_JS_FILE = "Generated Master Filter.js"
-SETS_ENUM_FILE = "sets_enum.ts"
-WHITELIST_FILE = "whitelist.txt"
-
-# --- EVALUATOR CONSTANTS ---
-# Median values to calculate how many rolls occurred
-AVG_ROLLS = {
-    "critRate_": 3.3, "critDMG_": 6.6, "atk_": 4.96, "hp_": 4.96, "def_": 6.2,
-    "eleMas": 19.8, "enerRech_": 5.5, "atk": 16.5, "hp": 254.0, "def": 19.8
-}
-
-# Maximum theoretical values to calculate RV%
-MAX_ROLLS = {
-    "critRate_": 3.89, "critDMG_": 7.77, "atk_": 5.83, "hp_": 5.83, "def_": 7.29,
-    "eleMas": 23.31, "enerRech_": 6.48, "atk": 19.45, "hp": 298.75, "def": 23.15
-}
 
 def evaluate_roll_value(csv_file, json_file):
     logs = []
     builds = defaultdict(dict)
     
-    # --- TRANSLATION LAYER: GOOD Format -> CSV Format ---
-    NAME_MAPPING = {
-        "KamisatoAyaka": "Ayaka",
-        "KamisatoAyato": "Ayato",
-        "KujouSara": "Sara",
-        "KukiShinobu": "Kuki",
-        "RaidenShogun": "Raiden",
-        "SangonomiyaKokomi": "Kokomi",
-        "ShikanoinHeizou": "Heizou",
-        "YumemizukiMizuki": "Mizuki",
-        "KaedeharaKazuha": "Kazuha",
-        "YaeMiko": "Yaemiko",
-        "AratakiItto": "Itto",
-        "LanYan": "Lanyan",
-        "YunJin": "Yunjin",
-        "Traveler": "MC"
-    }
     
     # 1. Parse CSV Logic
     try:
@@ -91,7 +59,7 @@ def evaluate_roll_value(csv_file, json_file):
 
     # 3. Evaluate Characters
     for raw_char, artifacts in equipped_artifacts.items():
-        normalized_char = NAME_MAPPING.get(raw_char, raw_char)
+        normalized_char = shared_config.GOOD_NAME_MAPPING.get(raw_char, raw_char)
         
         matched_csv_keys = []
         for csv_key in builds.keys():
@@ -116,10 +84,10 @@ def evaluate_roll_value(csv_file, json_file):
                         key = substat.get('key')
                         val = substat.get('value', 0)
                         
-                        if key in useful_stats and val > 0 and key in AVG_ROLLS:
-                            roll_count = round(val / AVG_ROLLS[key])
+                        if key in useful_stats and val > 0 and key in shared_config.AVG_ROLLS:
+                            roll_count = round(val / shared_config.AVG_ROLLS[key])
                             total_useful_rolls += roll_count
-                            rv = (val / MAX_ROLLS[key]) * 100
+                            rv = (val / shared_config.MAX_ROLLS[key]) * 100
                             total_rv_percentage += rv
                 
                 display_role = f"{matched_key} - {role}" if normalized_char == "MC" else role
@@ -175,15 +143,8 @@ class UnifiedArtifactTool(tk.Tk):
         self.style_var = tk.StringVar(value="verbose") # Added for style selection
         
         self.sets_data = {}
-        self._load_sets_data() # Load sets for Manual Builder
         self._load_settings()
         self._create_widgets()
-
-    def _load_sets_data(self):
-        try:
-            self.sets_data, _ = conversion_utils.parse_sets_enum(SETS_ENUM_FILE)
-        except Exception:
-            self.sets_data = {}
 
     def _create_widgets(self):
         notebook = ttk.Notebook(self)
@@ -232,7 +193,7 @@ class UnifiedArtifactTool(tk.Tk):
 
         # Artifact Set
         ttk.Label(parent, text="Artifact Set:").pack(anchor=tk.W)
-        self.manual_set_combo = ttk.Combobox(parent, values=sorted(self.sets_data.keys()), state="readonly")
+        self.manual_set_combo = ttk.Combobox(parent, values=sorted(shared_config.VALID_SETS), state="readonly")
         self.manual_set_combo.pack(fill=tk.X, pady=(0, 10))
 
         # Main Stats
@@ -250,14 +211,14 @@ class UnifiedArtifactTool(tk.Tk):
                 ttk.Checkbutton(f, text=opt, variable=v).grid(row=i//4, column=i%4, sticky=tk.W, padx=5)
             return vars_d
 
-        self.sands_vars = create_cb_group(ms_frame, "Sands", stat_utils.POSSIBLE_MAINS["Sands"])
-        self.goblet_vars = create_cb_group(ms_frame, "Goblet", stat_utils.POSSIBLE_MAINS["Goblet"])
-        self.circlet_vars = create_cb_group(ms_frame, "Circlet", stat_utils.POSSIBLE_MAINS["Circlet"])
+        self.sands_vars = create_cb_group(ms_frame, "Sands", shared_config.POSSIBLE_MAINS["Sands"])
+        self.goblet_vars = create_cb_group(ms_frame, "Goblet", shared_config.POSSIBLE_MAINS["Goblet"])
+        self.circlet_vars = create_cb_group(ms_frame, "Circlet", shared_config.POSSIBLE_MAINS["Circlet"])
 
         # Substats
         sub_frame = ttk.LabelFrame(parent, text="Desired Substats", padding="10")
         sub_frame.pack(fill=tk.X, pady=(0, 10))
-        substats_ui = ['ATK%', 'HP%', 'DEF%', 'Energy Recharge', 'Elemental Mastery', 'Crit Rate', 'Crit DMG']
+        substats_ui = list(shared_config.SUBSTAT_UI_MAPPING.keys())
         self.substat_vars = {}
         for i, stat in enumerate(substats_ui):
             var = tk.BooleanVar()
@@ -354,12 +315,7 @@ class UnifiedArtifactTool(tk.Tk):
         
         # Mapping UI names to CSV internal names (matching extraction logic)
         # Mapping UI names to precise GOOD.json internal names
-        ui_to_csv_map = {
-            'ATK%': 'atk_', 'HP%': 'hp_', 'DEF%': 'def_', 
-            'Energy Recharge': 'enerRech_', 'Elemental Mastery': 'eleMas', 
-            'Crit Rate': 'critRate_', 'Crit DMG': 'critDMG_'
-        }
-        substats = [ui_to_csv_map[k] for k, v in self.substat_vars.items() if v.get()]
+        substats = [shared_config.SUBSTAT_UI_MAPPING[k] for k, v in self.substat_vars.items() if v.get()]
 
         if not substats:
             messagebox.showerror("Error", "Select at least one substat.")
